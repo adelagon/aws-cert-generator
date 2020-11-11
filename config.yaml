@@ -1,0 +1,3 @@
+environment: dev
+stack_name: cert-generator
+region: ap-southeast-1

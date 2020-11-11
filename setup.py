@@ -19,7 +19,7 @@ setuptools.setup(
     packages=setuptools.find_packages(where="cert_generator"),
 
     install_requires=[
-        "aws-cdk.core==1.70.0",
+        "aws-cdk.core==1.72.0",
     ],
 
     python_requires=">=3.6",
