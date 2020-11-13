@@ -52,6 +52,16 @@ class CertGeneratorStack(core.Stack):
         core.CfnOutput(self, "Inputs", value=bucket.s3_url_for_object("inputs"))
         core.CfnOutput(self, "Outputs", value=bucket.s3_url_for_object("outputs"))
 
+        # wkhtmltopdf layer
+        wkhtmltopdflayer = _lambda.LayerVersion(
+            self,
+            'wkhtmltopdflayer',
+            code=_lambda.AssetCode(
+                os.path.join(dirname, "layers/wkhtmltox.zip")
+            ),
+            compatible_runtimes = [_lambda.Runtime.PYTHON_3_8]
+        )
+
         # Cert Generator Lambda Function
         function = PythonFunction(
             self,
@@ -60,7 +70,11 @@ class CertGeneratorStack(core.Stack):
             entry=os.path.join(dirname, "lambda"),
             index="cert_generator.py",
             handler="lambda_handler",
+            timeout=core.Duration.minutes(15),
+            layers=[wkhtmltopdflayer]
         )
+        function.add_environment("FONTCONFIG_PATH", "/opt/fonts")
+
 
         # Listen
         function.add_event_source(
