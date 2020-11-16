@@ -74,7 +74,7 @@ class CertGeneratorStack(core.Stack):
             layers=[wkhtmltopdflayer]
         )
         function.add_environment("FONTCONFIG_PATH", "/opt/fonts")
-        function.add_environment("PRESIGNED_URL_EXPIRES", config[""])
+        function.add_environment("PRESIGNED_URL_EXPIRES", str(config["presigned_url_expires"]))
 
 
         # Listen

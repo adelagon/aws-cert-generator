@@ -58,7 +58,6 @@ def lambda_handler(context, event):
         }
         
         body = open(os.path.join("templates", template, "index.html")).read()
-        output_csv = csv.DictWriter()
         with open(file_name, encoding="utf-8") as csv_file:
             csv_reader = csv.DictReader(csv_file, delimiter=",")
             fields = csv_reader.fieldnames
@@ -100,7 +99,7 @@ def lambda_handler(context, event):
                 s3_client = boto3.client("s3")
                 presigned_url = s3_client.generate_presigned_url('get_object',
                                                     Params={'Bucket': bucket_name,
-                                                            'Key': object_name},
+                                                            'Key': s3_object_name},
                                                     ExpiresIn=os.environ['PRESIGNED_URL_EXPIRES'])
                 
                 # Update output.csv
@@ -108,9 +107,8 @@ def lambda_handler(context, event):
                 csv_writer.writerow(row)
             
             # Upload output.csv
+            output_csv.close()
             bucket.upload_file(
-                open(os.path.join("templates", template, "output.csv"),
-                open(os.path.join("outputs", template, "output.csv")
+                os.path.join("templates", template, "output.csv"),
+                os.path.join("outputs/{}/output.csv".format(template))
             )
-
-
