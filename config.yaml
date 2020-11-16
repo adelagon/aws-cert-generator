@@ -1,3 +1,4 @@
 environment: dev
 stack_name: cert-generator
 region: ap-southeast-1
+presigned_url_expires: 604800

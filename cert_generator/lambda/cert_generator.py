@@ -1,8 +1,13 @@
 import os
 import sys
 import csv
+import uuid
 import boto3
 import pdfkit
+
+class SafeDict(dict):
+    def __missing__(self, key):
+        return '{' + key + '}'
 
 def lambda_handler(context, event):
     s3 = boto3.resource('s3')
@@ -34,11 +39,8 @@ def lambda_handler(context, event):
                 if obj.key[-1] == '/':
                     continue
                 bucket.download_file(obj.key, obj.key)
-            
-        
-        # Generate Certificates
 
-        ## wkhtmltopdf configurations
+        # wkhtmltopdf configurations
         config = pdfkit.configuration(wkhtmltopdf="/opt/bin/wkhtmltopdf")
         options = {
             'enable-local-file-access': None,
@@ -56,22 +58,59 @@ def lambda_handler(context, event):
         }
         
         body = open(os.path.join("templates", template, "index.html")).read()
-        with open(file_name) as csv_file:
-            csv_reader = csv.DictReader(csv_file, delimiter=',')
+        output_csv = csv.DictWriter()
+        with open(file_name, encoding="utf-8") as csv_file:
+            csv_reader = csv.DictReader(csv_file, delimiter=",")
+            fields = csv_reader.fieldnames
+            
+            # Prepare output.csv
+            output_csv = open(os.path.join("templates", template, "output.csv"), "w")
+            fields.append("Certificate URL")
+            csv_writer = csv.DictWriter(output_csv, fieldnames=fields)
+            csv_writer.writeheader()
+
             for row in csv_reader:
-                msg = body.format(
-                    fullname=row['Full Name'],
-                    date=row['Date']
-                )    
+                # Inject values into templates
+                msg = body.format_map(SafeDict(row))
                 certificate = open(os.path.join("templates", template, "certificate.html"), "w")
                 certificate.write(msg)
                 certificate.close()
+
+                # Generate to PDF
                 pdfkit.from_file(
                     (os.path.join("templates", template, "certificate.html")),
                     (os.path.join("templates", template, "certificate.pdf")),
                     configuration=config,
                     options=options
                 )
+
+                # Upload to S3
+                s3_object_name = os.path.join("outputs/{}/certificate-{}.pdf".format(
+                        template,
+                        uuid.uuid4().hex
+                        )
+                )
+
                 bucket.upload_file(
                     os.path.join("templates", template, "certificate.pdf"),
-                    os.path.join("outputs/{}/certificate-{}.pdf".format(template, row['Full Name'])))
+                    s3_object_name    
+                )
+
+                # Generate Pre-signed URL (1-week)
+                s3_client = boto3.client("s3")
+                presigned_url = s3_client.generate_presigned_url('get_object',
+                                                    Params={'Bucket': bucket_name,
+                                                            'Key': object_name},
+                                                    ExpiresIn=os.environ['PRESIGNED_URL_EXPIRES'])
+                
+                # Update output.csv
+                row["Certificate URL"] = presigned_url
+                csv_writer.writerow(row)
+            
+            # Upload output.csv
+            bucket.upload_file(
+                open(os.path.join("templates", template, "output.csv"),
+                open(os.path.join("outputs", template, "output.csv")
+            )
+
+
